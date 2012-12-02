@@ -1,0 +1,164 @@
+<%- 
+
+require 'nokogiri' 
+
+def word_wrap(text, line_width = 70 ) 
+  return text if line_width <= 0
+  text.gsub(/\n/, ' ').gsub(/(.{1,#{line_width}})(\s+|$)/, "\\1\n").strip
+end
+
+def wrap_and_prepend(text, line_width=70)
+  holder=''
+  text1 = word_wrap(text, line_width)
+  text2 = text1.split("\n")
+  text3 = text2.map{ |word| "#   #{word}" }
+  text3.each do |line|
+    holder+=line+"\n"
+  end
+  return holder
+end
+
+-%>
+# == Define: logstash::<%= section %>::<%= name %>
+#
+<%-
+  doc = Nokogiri::HTML(description)
+  desc_text=doc.xpath("//text()").remove.to_s
+  desc = wrap_and_prepend(desc_text)
+-%>
+<%= desc -%>
+#
+#
+# === Parameters
+#
+<%-
+  documentation=""
+
+  sorted_settings.each do | setting_name, config |
+    next if config[:deprecated]
+    if config[:validate].is_a?(Symbol) 
+      valinput='Value type is '+config[:validate].to_s
+    elsif config[:validate].nil?
+      valinput='Value type is String'
+    elsif config[:validate].is_a?(Array) 
+      valinput='Value can be any of: '+config[:validate].map(&:inspect).join(", ")
+    end
+    if config.include?(:default)
+      defvalue=config[:default].inspect
+    else
+      defvalue='None'
+    end
+    if config[:required]
+      mandatory='required'
+    else
+      mandatory='optional'
+    end
+
+    desc=config[:description]
+    doc = Nokogiri::HTML(desc)
+    desc_text=doc.xpath("//text()").remove.to_s
+    desc = wrap_and_prepend(desc_text)
+    valname = setting_name.to_s
+    valinput = wrap_and_prepend(valinput)
+
+    documentation+="# [*"+valname+"*] \n"
+    documentation+=desc
+    documentation+=valinput
+    documentation+="#   Default value: "+defvalue+"\n"
+    documentation+="#   This variable is "+mandatory+"\n"
+    documentation+="#\n"
+  end
+-%>
+<%=documentation -%>
+#
+#
+# === Examples
+#
+#
+#
+#
+# === Extra information
+#
+#  This define is created based on LogStash version <%= LOGSTASH_VERSION %>
+#  Extra information about this <%= section %> can be found at:
+#  http://logstash.net/docs/<%= LOGSTASH_VERSION %>/<%=section%>s/<%=name%>
+#
+#  Need help? http://logstash.net/docs/<%= LOGSTASH_VERSION %>/learn
+#
+# === Authors
+#
+# * Richard Pijnenburg <mailto:richard@ispavailability.com>
+#
+define logstash::<%= section %>::<%= name%>(
+<% 
+
+sorted_1 = sorted_settings.sort_by { |a,b| b[:required] && 0 || 1 }
+sorted_1.each do |setting_name, config|
+  next if config[:deprecated]
+  next if setting_name.is_a?(Regexp)
+-%>  $<%= setting_name -%><% if ! config[:required] -%> = '',
+<%- else -%>,
+<% end -%>
+<%- end -%>
+<%- if section == 'filter' -%>  $order = 10<% end %>
+) {
+
+  require logstash::params
+
+  #### Validate parameters
+  <%-
+  sorted_2 = sorted_settings.sort_by { |a,b| b[:validate].class == Symbol ? b[:validate] : :other  }
+  sorted_2.each do |setting_name, config|
+  next if config[:deprecated]
+  if config[:validate].is_a?(Array) 
+    annotation = "#{config[:validate].inspect}"
+  else 
+    annotation = "#{config[:validate]}"
+  end
+  next if setting_name.is_a?(Regexp)
+  if annotation == 'string' or annotation == 'password' %>
+  if $<%=setting_name %> { validate_string($<%=setting_name%>) $opt_<%=setting_name%> = "  <%=setting_name%> => \"${<%=setting_name%>}\"\n" }
+  <%- elsif  annotation == 'array' %>
+  if $<%=setting_name %> { validate_array($<%=setting_name%>) $arr_<%=setting_name%> = join($<%= setting_name%>, "', '") $opt_<%=setting_name%> = "  <%=setting_name%> => ['${arr_<%=setting_name%>}']\n" }
+  <%- elsif annotation == 'number' %>
+  if $<%=setting_name%> {
+    if ! is_numeric($<%=setting_name%>) {
+      fail("\"${<%=setting_name%>}\" is not a valid <%=setting_name%> parameter value")
+    } else {
+      $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n"
+    }
+  }
+  <%- elsif annotation == 'hash' %>
+  if $<%=setting_name %> { validate_hash($<%=setting_name %>) $arr_<%=setting_name%> = inline_template('<%%= <%=setting_name%>.to_a.flatten.inspect %>') $opt_<%=setting_name%> = "  <%=setting_name%> => ${arr_<%=setting_name%>}\n" }
+  <%- elsif annotation == 'boolean' %>
+  if $<%=setting_name %> { validate_bool($<%=setting_name %>) $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n" }
+  <%- else
+  annotation = annotation.to_s.gsub(/\"/,'\'')
+  %>
+  if $<%=setting_name%> {
+    if ! ($<%=setting_name%> in <%=annotation%>) {
+      fail("\"${<%=setting_name%>}\" is not a valid <%=setting_name%> parameter value")
+    } else {
+      $opt_<%=setting_name %> = "  <%=setting_name%> => \"${<%=setting_name%>}\"\n"
+    }
+  }
+  <%- end -%>
+<%- end %>
+
+  #### Write config file
+
+  file { "${logstash::params::configdir}/<%=section%>_<% if section=='filter' %>${order}_<%- end%><%=name%>_${name}":
+    ensure  => present,
+    content => "<%= section %> {\n <%=name%> {\n<%-
+sorted_settings.each do |setting_name, config|
+  next if config[:deprecated]
+  next if setting_name.is_a?(Regexp)
+-%>${opt_<%=setting_name %>}<%- end -%>
+ }\n}\n",
+    owner   => 'root',
+    group   => 'root',
+    mode    => '0644',
+    notify  => Class['logstash::service'],
+    require => Class['logstash::package', 'logstash::config']
+  }
+}
