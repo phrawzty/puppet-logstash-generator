@@ -92,6 +92,9 @@ end
 define logstash::<%= section %>::<%= name%>(
 <% 
 
+# Add an 'order' setting for all filters.
+sorted_settings << ["order", :default => 10, :validate => :number] if section == 'filter'
+
 # compute alignment  (Puppet Style guide section 9.2 'arrow alignment')
 max_len = sorted_settings.select { |k,v| !k.is_a?(Regexp) }.collect { |k,v| k.to_s.length }.max
 
@@ -104,7 +107,6 @@ sorted_1.each do |setting_name, config|
 -%>
   $<%= setting_name -%><% if ! config[:required] -%><%= spacing %> = ''<% end -%>,
 <%- end -%>
-<%- if section == 'filter' -%>  $order = 10<% end %>
 ) {
 
   require logstash::params
