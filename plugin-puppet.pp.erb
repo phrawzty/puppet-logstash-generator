@@ -68,8 +68,20 @@ end
     documentation+="#   This variable is "+mandatory+"\n"
     documentation+="#\n"
   end
+
 -%>
 <%=documentation -%>
+<%-
+if section == 'filter'
+-%>
+# [*order*]
+#   The order variable decides in which sequence the filters are loaded.
+#   Value type is number
+#   Default value: 10
+#   This variable is optional  
+<%-
+end
+-%>
 #
 #
 # === Examples
