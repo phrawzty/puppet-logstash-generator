@@ -120,11 +120,19 @@ sorted_1.each do |setting_name, config|
     annotation = "#{config[:validate]}"
   end
   next if setting_name.is_a?(Regexp)
-  if annotation == 'string' or annotation == 'password' %>
-  if $<%=setting_name %> { validate_string($<%=setting_name%>) $opt_<%=setting_name%> = "  <%=setting_name%> => \"${<%=setting_name%>}\"\n" }
-  <%- elsif  annotation == 'array' %>
-  if $<%=setting_name %> { validate_array($<%=setting_name%>) $arr_<%=setting_name%> = join($<%= setting_name%>, "', '") $opt_<%=setting_name%> = "  <%=setting_name%> => ['${arr_<%=setting_name%>}']\n" }
-  <%- elsif annotation == 'number' %>
+  if annotation == 'string' or annotation == 'password' 
+-%>
+  if $<%=setting_name %> { 
+    validate_string($<%=setting_name%>)
+    $opt_<%=setting_name%> = "  <%=setting_name%> => \"${<%=setting_name%>}\"\n"
+  }
+<%- elsif  annotation == 'array' -%>
+  if $<%=setting_name %> {
+    validate_array($<%=setting_name%>)
+    $arr_<%=setting_name%> = join($<%= setting_name%>, "', '")
+    $opt_<%=setting_name%> = "  <%=setting_name%> => ['${arr_<%=setting_name%>}']\n"
+  }
+<%- elsif annotation == 'number' -%>
   if $<%=setting_name%> {
     if ! is_numeric($<%=setting_name%>) {
       fail("\"${<%=setting_name%>}\" is not a valid <%=setting_name%> parameter value")
@@ -132,13 +140,20 @@ sorted_1.each do |setting_name, config|
       $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n"
     }
   }
-  <%- elsif annotation == 'hash' %>
-  if $<%=setting_name %> { validate_hash($<%=setting_name %>) $arr_<%=setting_name%> = inline_template('<%%= <%=setting_name%>.to_a.flatten.inspect %>') $opt_<%=setting_name%> = "  <%=setting_name%> => ${arr_<%=setting_name%>}\n" }
-  <%- elsif annotation == 'boolean' %>
-  if $<%=setting_name %> { validate_bool($<%=setting_name %>) $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n" }
-  <%- else
+<%- elsif annotation == 'hash' -%>
+  if $<%=setting_name %> {
+    validate_hash($<%=setting_name %>)
+    $arr_<%=setting_name%> = inline_template('<%%= <%=setting_name%>.to_a.flatten.inspect %>')
+    $opt_<%=setting_name%> = "  <%=setting_name%> => ${arr_<%=setting_name%>}\n"
+  }
+<%- elsif annotation == 'boolean' -%>
+  if $<%=setting_name %> {
+    validate_bool($<%=setting_name %>)
+    $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n"
+  }
+<%- else
   annotation = annotation.to_s.gsub(/\"/,'\'')
-  %>
+-%>
   if $<%=setting_name%> {
     if ! ($<%=setting_name%> in <%=annotation%>) {
       fail("\"${<%=setting_name%>}\" is not a valid <%=setting_name%> parameter value")
@@ -147,8 +162,8 @@ sorted_1.each do |setting_name, config|
     }
   }
   <%- end -%>
-<%- end %>
 
+<%- end -%>
   #### Write config file
 
   file { "${logstash::params::configdir}/<%=section%>_<% if section=='filter' %>${order}_<%- end%><%=name%>_${name}":
