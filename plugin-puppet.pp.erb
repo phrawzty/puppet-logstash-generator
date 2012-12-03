@@ -92,12 +92,17 @@ end
 define logstash::<%= section %>::<%= name%>(
 <% 
 
+# compute alignment  (Puppet Style guide section 9.2 'arrow alignment')
+max_len = sorted_settings.select { |k,v| !k.is_a?(Regexp) }.collect { |k,v| k.to_s.length }.max
+
 sorted_1 = sorted_settings.sort_by { |a,b| b[:required] && 0 || 1 }
 sorted_1.each do |setting_name, config|
   next if config[:deprecated]
   next if setting_name.is_a?(Regexp)
+
+  spacing = " " * (max_len - setting_name.to_s.length)
 -%>
-  $<%= setting_name -%><% if ! config[:required] -%> = ''<% end -%>,
+  $<%= setting_name -%><% if ! config[:required] -%><%= spacing %> = ''<% end -%>,
 <%- end -%>
 <%- if section == 'filter' -%>  $order = 10<% end %>
 ) {
