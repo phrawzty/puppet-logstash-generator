@@ -96,9 +96,8 @@ sorted_1 = sorted_settings.sort_by { |a,b| b[:required] && 0 || 1 }
 sorted_1.each do |setting_name, config|
   next if config[:deprecated]
   next if setting_name.is_a?(Regexp)
--%>  $<%= setting_name -%><% if ! config[:required] -%> = '',
-<%- else -%>,
-<% end -%>
+-%>
+  $<%= setting_name -%><% if ! config[:required] -%> = ''<% end -%>,
 <%- end -%>
 <%- if section == 'filter' -%>  $order = 10<% end %>
 ) {
