@@ -34,11 +34,12 @@ end
 <%-
   documentation=""
 
-  sorted_settings.each do | setting_name, config |
+  sorted_attributes.each do | name, config |
     next if config[:deprecated]
     if config[:validate].is_a?(Symbol) 
       valinput='Value type is '+config[:validate].to_s
     elsif config[:validate].nil?
+      puts "#{name} is nil"
       valinput='Value type is String'
     elsif config[:validate].is_a?(Array) 
       valinput='Value can be any of: '+config[:validate].map(&:inspect).join(", ")
@@ -58,10 +59,10 @@ end
     doc = Nokogiri::HTML(desc)
     desc_text=doc.xpath("//text()").remove.to_s
     desc = wrap_and_prepend(desc_text)
-    valname = setting_name.to_s
+    valname = name.to_s
     valinput = wrap_and_prepend(valinput)
 
-    documentation+="# [*"+valname+"*] \n"
+    documentation+="# [*"+valname+"*]\n"
     documentation+=desc
     documentation+=valinput
     documentation+="#   Default value: "+defvalue+"\n"
@@ -105,19 +106,19 @@ define logstash::<%= section %>::<%= name%>(
 <% 
 
 # Add an 'order' setting for all filters.
-sorted_settings << ["order", :validate => :number] if section == 'filter'
+sorted_attributes << ["order", :validate => :number] if section == 'filter'
 
 # compute alignment  (Puppet Style guide section 9.2 'arrow alignment')
-max_len = sorted_settings.select { |k,v| !k.is_a?(Regexp) }.collect { |k,v| k.to_s.length }.max
+max_len = sorted_attributes.select { |k,v| !k.is_a?(Regexp) }.collect { |k,v| k.to_s.length }.max
 
-sorted_1 = sorted_settings.sort_by { |a,b| b[:required] && 0 || 1 }
-sorted_1.each do |setting_name, config|
+sorted_1 = sorted_attributes.sort_by { |a,b| b[:required] && 0 || 1 }
+sorted_1.each do |name, config|
   next if config[:deprecated]
-  next if setting_name.is_a?(Regexp)
+  next if name.is_a?(Regexp)
 
-  spacing = " " * (max_len - setting_name.to_s.length)
+  spacing = " " * (max_len - name.to_s.length)
 -%>
-  $<%= setting_name -%><% if ! config[:required] -%><%= spacing %> = <% if setting_name == 'order' %>10<% else -%>''<% end %><% end -%>,
+  $<%= name -%><% if ! config[:required] -%><%= spacing %> = <% if name == 'order' %>10<% else -%>''<% end %><% end -%>,
 <%- end -%>
 ) {
 
@@ -125,56 +126,56 @@ sorted_1.each do |setting_name, config|
 
   #### Validate parameters
   <%-
-  sorted_2 = sorted_settings.sort_by { |a,b| b[:validate].class == Symbol ? b[:validate] : :other  }
-  sorted_2.each do |setting_name, config|
+  sorted_2 = sorted_attributes.sort_by { |a,b| b[:validate].class == Symbol ? b[:validate] : :other  }
+  sorted_2.each do |name, config|
   next if config[:deprecated]
   if config[:validate].is_a?(Array) 
     annotation = "#{config[:validate].inspect}"
   else 
     annotation = "#{config[:validate]}"
   end
-  next if setting_name.is_a?(Regexp)
+  next if name.is_a?(Regexp)
   if annotation == 'string' or annotation == 'password' 
 -%>
-  if $<%=setting_name %> { 
-    validate_string($<%=setting_name%>)
-    $opt_<%=setting_name%> = "  <%=setting_name%> => \"${<%=setting_name%>}\"\n"
+  if $<%=name %> { 
+    validate_string($<%=name%>)
+    $opt_<%=name%> = "  <%=name%> => \"${<%=name%>}\"\n"
   }
 <%- elsif  annotation == 'array' -%>
-  if $<%=setting_name %> {
-    validate_array($<%=setting_name%>)
-    $arr_<%=setting_name%> = join($<%= setting_name%>, "', '")
-    $opt_<%=setting_name%> = "  <%=setting_name%> => ['${arr_<%=setting_name%>}']\n"
+  if $<%=name %> {
+    validate_array($<%=name%>)
+    $arr_<%=name%> = join($<%= name%>, "', '")
+    $opt_<%=name%> = "  <%=name%> => ['${arr_<%=name%>}']\n"
   }
 <%- elsif annotation == 'number' -%>
-  if $<%=setting_name%> {
-    if ! is_numeric($<%=setting_name%>) {
-      fail("\"${<%=setting_name%>}\" is not a valid <%=setting_name%> parameter value")
-    <%- if section =='filter' and setting_name != 'order' -%>
+  if $<%=name%> {
+    if ! is_numeric($<%=name%>) {
+      fail("\"${<%=name%>}\" is not a valid <%=name%> parameter value")
+    <%- if section =='filter' and name != 'order' -%>
     } else {
-      $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n"
+      $opt_<%=name%> = "  <%=name%> => ${<%=name%>}\n"
     <%- end -%>
     }
   }
 <%- elsif annotation == 'hash' -%>
-  if $<%=setting_name %> {
-    validate_hash($<%=setting_name %>)
-    $arr_<%=setting_name%> = inline_template('<%%= <%=setting_name%>.to_a.flatten.inspect %>')
-    $opt_<%=setting_name%> = "  <%=setting_name%> => ${arr_<%=setting_name%>}\n"
+  if $<%=name %> {
+    validate_hash($<%=name %>)
+    $arr_<%=name%> = inline_template('<%%= <%=name%>.to_a.flatten.inspect %>')
+    $opt_<%=name%> = "  <%=name%> => ${arr_<%=name%>}\n"
   }
 <%- elsif annotation == 'boolean' -%>
-  if $<%=setting_name %> {
-    validate_bool($<%=setting_name %>)
-    $opt_<%=setting_name%> = "  <%=setting_name%> => ${<%=setting_name%>}\n"
+  if $<%=name %> {
+    validate_bool($<%=name %>)
+    $opt_<%=name%> = "  <%=name%> => ${<%=name%>}\n"
   }
 <%- else
   annotation = annotation.to_s.gsub(/\"/,'\'')
 -%>
-  if $<%=setting_name%> {
-    if ! ($<%=setting_name%> in <%=annotation%>) {
-      fail("\"${<%=setting_name%>}\" is not a valid <%=setting_name%> parameter value")
+  if $<%=name%> {
+    if ! ($<%=name%> in <%=annotation%>) {
+      fail("\"${<%=name%>}\" is not a valid <%=name%> parameter value")
     } else {
-      $opt_<%=setting_name %> = "  <%=setting_name%> => \"${<%=setting_name%>}\"\n"
+      $opt_<%=name %> = "  <%=name%> => \"${<%=name%>}\"\n"
     }
   }
   <%- end -%>
@@ -185,11 +186,11 @@ sorted_1.each do |setting_name, config|
   file { "${logstash::params::configdir}/<%=section%>_<% if section=='filter' %>${order}_<%- end%><%=name%>_${name}":
     ensure  => present,
     content => "<%= section %> {\n <%=name%> {\n<%-
-sorted_settings.each do |setting_name, config|
+sorted_attributes.each do |name, config|
   next if config[:deprecated]
-  next if setting_name.is_a?(Regexp)
-  next if setting_name == 'order'
--%>${opt_<%=setting_name %>}<%- end -%>
+  next if name.is_a?(Regexp)
+  next if name == 'order'
+-%>${opt_<%=name %>}<%- end -%>
  }\n}\n",
     owner   => 'root',
     group   => 'root',
