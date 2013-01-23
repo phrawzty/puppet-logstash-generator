@@ -13,6 +13,7 @@ def wrap_and_prepend(text, line_width=70)
   text2 = text1.split("\n")
   text3 = text2.map{ |word| "#   #{word}" }
   text3.each do |line|
+    line = line.strip
     holder+=line+"\n"
   end
   return holder
