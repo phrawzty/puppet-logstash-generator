@@ -103,7 +103,7 @@ end
 #
 # * Richard Pijnenburg <mailto:richard@ispavailability.com>
 #
-define logstash::<%= section %>::<%= name%>(
+define logstash::<%= section %>::<%= name%> (
 <% 
 
 # Add an 'order' setting for all filters.
@@ -119,9 +119,11 @@ sorted_1.each do |name, config|
 
   spacing = " " * (max_len - name.to_s.length)
 -%>
-  $<%= name -%><% if ! config[:required] -%><%= spacing %> = <% if name == 'order' %>10<% else -%>''<% end %><% end -%>,
+  $<%= name -%><% if ! config[:required] -%><%= spacing %> = <% if name == 'order' %>10<% else -%>''<% end %><% end -%>
+  <%- if sorted_1.last[0] != name -%>,<% end %>
 <%- end -%>
 ) {
+
 
   require logstash::params
 
