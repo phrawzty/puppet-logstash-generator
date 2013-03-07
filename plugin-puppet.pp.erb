@@ -1,6 +1,9 @@
 <%- 
 
-require 'nokogiri' 
+require 'nokogiri'
+
+# Set variable to fase. Will be set to true if we have a path resource and require to create a directory
+got_path_resource = false
 
 def word_wrap(text, line_width = 70 ) 
   return text if line_width <= 0
@@ -19,6 +22,7 @@ def wrap_and_prepend(text, line_width=70)
   return holder
 end
 
+plugin_name = name
 -%>
 # == Define: logstash::<%= section %>::<%= name %>
 #
@@ -171,6 +175,26 @@ sorted_1.each do |name, config|
     validate_bool($<%=name %>)
     $opt_<%=name%> = "  <%=name%> => ${<%=name%>}\n"
   }
+<% elsif annotation == 'path'
+  # Set variable to true because we need to create the directory
+  got_path_resource = true
+-%>
+  if $<%=name %> {
+    validate_re($<%=name %>, '\Apuppet:\/\/')
+
+    $filenameArray = split($<%=name%>, '/')
+    $basefilename = $filenameArray[-1]
+
+    $opt_<%=name %> = "  <%=name%> => \"${logstash::params::pluginfiles}/<%=section%>/<%=plugin_name%>/${name}/${basefilename}\"\n"
+
+    file { "${logstash::params::pluginfiles}/<%=section%>/<%=plugin_name%>/${name}/${basefilename}":
+      source  => $<%=name%>,
+      owner   => 'root',
+      group   => 'root',
+      mode    => '0644',
+      require => Exec[ "create_plugin_files_dir_<%=section%>_<%=plugin_name%>_${name}" ]
+    }
+  }
 <%- else
   annotation = annotation.to_s.gsub(/\"/,'\'')
 -%>
@@ -182,6 +206,17 @@ sorted_1.each do |name, config|
     }
   }
   <%- end -%>
+
+<%- end
+
+if got_path_resource == true -%>
+
+  exec { "create_plugin_files_dir_<%=section%>_<%=plugin_name%>_${name}":
+    cwd     => '/',
+    path    => ['/usr/bin', '/bin'],
+    command => "mkdir -p ${logstash::params::pluginfiles}/<%=section%>/<%=plugin_name%>/${name}",
+    creates => "${logstash::params::pluginfiles}/<%=section%>/<%=plugin_name%>/${name}"
+  }
 
 <%- end -%>
   #### Write config file
