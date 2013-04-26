@@ -265,7 +265,7 @@ sorted_attributes.each do |name, config|
  }\n}\n",
     owner   => 'root',
     group   => 'root',
-    mode    => '0644',
+    mode    => '0640',
     notify  => Service[$services],
     require => Class['logstash::package', 'logstash::config']
   }
