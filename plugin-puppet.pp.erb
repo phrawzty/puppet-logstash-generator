@@ -202,9 +202,7 @@ sorted_1.each do |name, config|
       $filenameArray = split($<%=name%>, '/')
       $basefilename = $filenameArray[-1]
 
-      $file = suffix($pluginfiles, $basefilename)
       $opt_<%=name %> = "  <%=name%> => \"${filesdir}/${basefilename}\"\n"
-
 
       file { "${filesdir}/${basefilename}":
         source  => $<%=name%>,
@@ -229,10 +227,8 @@ sorted_1.each do |name, config|
   }
   <%- end -%>
 
-<%- end %>
-
-
-<% if got_path_resource == true -%>
+<%- end
+if got_path_resource == true -%>
 
   #### Create the directory where we place the files
   exec { "create_files_dir_<%=section%>_<%=plugin_name%>_${name}":
