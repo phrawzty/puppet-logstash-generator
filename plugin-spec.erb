@@ -1,0 +1,150 @@
+<%-
+sorted_attributes << ["order", :validate => :number] if section == 'filter'
+sorted_attributes << ["instances", :validate => :array]
+plugin_name = name
+path_tests = []
+-%>
+require 'spec_helper'
+
+describe 'logstash::<%=section%>::<%=plugin_name%>', :type => 'define' do
+
+  let(:facts) { {:operatingsystem => 'CentOS' }}
+  let(:pre_condition) { 'class {"logstash": }'}
+  let(:title) { 'test' }
+
+  context "Input test" do
+
+    let :params do {
+  <%-
+  val=1
+  sorted_attributes.each do |name, config|
+  next if config[:deprecated]
+  next if name.is_a?(Regexp)
+  next if name == 'order'
+  next if name == 'instances'
+
+  if config[:validate].is_a?(Array)
+    annotation = "#{config[:validate].inspect}"
+  else
+    annotation = "#{config[:validate]}"
+  end
+
+  if annotation == 'string' or annotation == 'password'
+    testvalue= "'value#{val}'"
+  elsif annotation == 'array'
+    testvalue = "['value#{val}']"
+  elsif annotation == 'number' or annotation == 'integer'
+    testvalue = val
+  elsif annotation == 'hash'
+    testvalue = "{ 'field#{val}' => 'value#{val}' }"
+  elsif annotation == 'boolean' or annotation == 'bool'
+    testvalue = 'false'
+  elsif annotation == 'path'
+    testvalue = "'puppet:///path/to/file#{val}'"
+    path_tests.push({:path => testvalue, :file => "file#{val}" })
+  else
+    value = annotation.to_s.gsub(/\"/,'\'')
+    value2 = value.split(",")
+    value3 = value2.first.to_s.gsub(/\[/,'')
+    testvalue = "#{value3}"
+  end
+  -%>
+      :<%=name -%> => <%=testvalue-%>,
+  <%-
+  val += 1
+  end-%>
+    } end
+
+    it { should contain_file('/etc/logstash/agent/config/<%=section%>_<%- if section == 'filter' %>10_<%- end -%><%=plugin_name%>_test').with(:content => "<%=section%> {\n <%=plugin_name%> {\n<%-
+    val=1
+    sorted_attributes.each do |name, config|
+    next if config[:deprecated]
+    next if name.is_a?(Regexp)
+    next if name == 'order'
+    next if name == 'instances'
+  if config[:validate].is_a?(Array)
+    annotation = "#{config[:validate].inspect}"
+  else
+    annotation = "#{config[:validate]}"
+  end
+
+  if annotation == 'string' or annotation == 'password'
+    testvalue= "\\\"value#{val}\\\""
+  elsif annotation == 'array'
+    testvalue = "['value#{val}']"
+  elsif annotation == 'number' or annotation == 'integer'
+    testvalue = val
+  elsif annotation == 'hash'
+    testvalue = { "field#{val}" => "value#{val}" }.to_a.flatten.inspect.to_s.gsub(/\"/,'\\\"')
+  elsif annotation == 'boolean' or annotation == 'bool'
+    testvalue = 'false'
+  elsif annotation == 'path'
+    testvalue = "\\\"/etc/logstash/files/#{section}/#{plugin_name}/test/file#{val}\\\""
+  else
+    value = annotation.to_s.gsub(/\"/,'')
+    value2 = value.split(",")
+    value3 = value2.first.to_s.gsub(/\[/,'')
+    testvalue = "\\\"#{value3}\\\""
+  end
+  -%>  <%=name -%> => <%=testvalue-%>\n<%- val += 1 end-%> }\n}\n") }
+  <%- path_tests.each do |a|
+    -%>
+    it { should contain_file('/etc/logstash/files/<%=section%>/<%=plugin_name%>/test/<%=a[:file]%>').with(:source => <%=a[:path]%>) }
+    <%-
+  end
+  if path_tests.any? then -%>
+    it { should contain_file('/etc/logstash/files/<%=section%>/<%=plugin_name%>/test') }
+    it { should contain_exec('create_files_dir_<%=section%>_<%=plugin_name%>_test').with(:command => 'mkdir -p /etc/logstash/files/<%=section%>/<%=plugin_name%>/test') }
+  <%- end
+  -%>
+  end
+
+  context "Instance test" do
+
+    let :params do {
+  <%-
+  val=1
+  sorted_attributes.each do |name, config|
+  next if config[:deprecated]
+  next if name.is_a?(Regexp)
+  next if name == 'order'
+  next if name == 'instances'
+
+  if config[:validate].is_a?(Array)
+    annotation = "#{config[:validate].inspect}"
+  else
+    annotation = "#{config[:validate]}"
+  end
+
+  if annotation == 'string' or annotation == 'password'
+    testvalue= "'value#{val}'"
+  elsif annotation == 'array'
+    testvalue = "['value#{val}']"
+  elsif annotation == 'number' or annotation == 'integer'
+    testvalue = val
+  elsif annotation == 'hash'
+    testvalue = "{ 'field#{val}' => 'value#{val}' }"
+  elsif annotation == 'boolean' or annotation == 'bool'
+    testvalue = 'false'
+  elsif annotation == 'path'
+    testvalue = "'puppet:///path/to/file#{val}'"
+  else
+    value = annotation.to_s.gsub(/\"/,'\'')
+    value2 = value.split(",")
+    value3 = value2.first.to_s.gsub(/\[/,'')
+    testvalue = "#{value3}"
+  end
+  -%>
+      :<%=name -%> => <%=testvalue-%>,
+  <%-
+  val += 1
+  end-%>
+      :instances => [ 'agent1', 'agent2' ]
+    } end
+  
+    it { should contain_file('/etc/logstash/agent1/config/<%=section%>_<%- if section == 'filter' %>10_<%- end -%><%=plugin_name%>_test') }
+    it { should contain_file('/etc/logstash/agent2/config/<%=section%>_<%- if section == 'filter' %>10_<%- end -%><%=plugin_name%>_test') }
+
+  end
+
+end
