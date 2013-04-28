@@ -208,7 +208,7 @@ if __FILE__ == $0
   opts.on("-o DIR", "--output DIR", 
           "Directory to output to; optional. If not specified,"\
           "we write to stdout.") do |val|
-    settings[:output] = val
+    settings[:output] = "#{val}/defines"
   end
 
   args = opts.parse(ARGV)

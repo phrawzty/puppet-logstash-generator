@@ -22,6 +22,9 @@ def wrap_and_prepend(text, line_width=70)
   return holder
 end
 
+reserved_puppet = [ 'name', 'notify' ]
+reserved_ruby = [ 'split' ]
+
 plugin_name = name
 -%>
 # == Define: logstash::<%= section %>::<%= name %>
@@ -159,18 +162,18 @@ sorted_1.each do |name, config|
   validate_array($instances)
  <%- elsif annotation == 'string' or annotation == 'password' 
 -%>
-  if $<%=name %> {
+  if ($<%=name %> != '') {
     validate_string($<%=name%>)
     $opt_<%=name%> = "  <%=name%> => \"${<%=name%>}\"\n"
   }
 <%- elsif  annotation == 'array' -%>
-  if $<%=name %> {
+  if ($<%=name %> != '') {
     validate_array($<%=name%>)
     $arr_<%=name%> = join($<%= name%>, '\', \'')
     $opt_<%=name%> = "  <%=name%> => ['${arr_<%=name%>}']\n"
   }
-<%- elsif annotation == 'number' -%>
-  if $<%=name%> {
+<%- elsif annotation == 'number' or annotation == 'integer' -%>
+  if ($<%=name%> != '') {
     if ! is_numeric($<%=name%>) {
       fail("\"${<%=name%>}\" is not a valid <%=name%> parameter value")
     <%- if name != 'order' -%>
@@ -180,13 +183,18 @@ sorted_1.each do |name, config|
     }
   }
 <%- elsif annotation == 'hash' -%>
-  if $<%=name %> {
+  if ($<%=name %> != '') {
     validate_hash($<%=name %>)
+    <%- if reserved_ruby.include?(name) then -%>
+    $var_<%=name%> = $<%=name%>
+    $arr_<%=name%> = inline_template('<%%= var_<%=name%>.to_a.flatten.inspect %>')
+    <%- else -%>
     $arr_<%=name%> = inline_template('<%%= <%=name%>.to_a.flatten.inspect %>')
+    <%- end -%>
     $opt_<%=name%> = "  <%=name%> => ${arr_<%=name%>}\n"
   }
-<%- elsif annotation == 'boolean' -%>
-  if $<%=name %> {
+<%- elsif annotation == 'boolean' or annotation == 'bool' -%>
+  if ($<%=name %> != '') {
     validate_bool($<%=name %>)
     $opt_<%=name%> = "  <%=name%> => ${<%=name%>}\n"
   }
@@ -194,17 +202,17 @@ sorted_1.each do |name, config|
   # Set variable to true because we need to create the directory
   got_path_resource = true
 -%>
-  if $<%=name %> {
+  if ($<%=name %> != '') {
     if $<%=name %> =~ /^puppet\:\/\// {
 
       validate_re($<%=name %>, '\Apuppet:\/\/')
 
-      $filenameArray = split($<%=name%>, '/')
-      $basefilename = $filenameArray[-1]
+      $filenameArray_<%=name%> = split($<%=name%>, '/')
+      $basefilename_<%=name%> = $filenameArray_<%=name%>[-1]
 
-      $opt_<%=name %> = "  <%=name%> => \"${filesdir}/${basefilename}\"\n"
+      $opt_<%=name %> = "  <%=name%> => \"${filesdir}/${basefilename_<%=name%>}\"\n"
 
-      file { "${filesdir}/${basefilename}":
+      file { "${filesdir}/${basefilename_<%=name%>}":
         source  => $<%=name%>,
         owner   => 'root',
         group   => 'root',
@@ -218,7 +226,7 @@ sorted_1.each do |name, config|
 <%- else
   annotation = annotation.to_s.gsub(/\"/,'\'')
 -%>
-  if $<%=name%> {
+  if ($<%=name%> != '') {
     if ! ($<%=name%> in <%=annotation%>) {
       fail("\"${<%=name%>}\" is not a valid <%=name%> parameter value")
     } else {
