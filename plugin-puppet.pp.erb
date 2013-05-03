@@ -187,9 +187,9 @@ sorted_1.each do |name, config|
     validate_hash($<%=name %>)
     <%- if reserved_ruby.include?(name) then -%>
     $var_<%=name%> = $<%=name%>
-    $arr_<%=name%> = inline_template('<%%= var_<%=name%>.to_a.flatten.inspect %>')
+    $arr_<%=name%> = inline_template('<%%= var_<%=name%>.collect { |k,v| "\"#{k}\", \"#{v}\"" }.join(", ") %>')
     <%- else -%>
-    $arr_<%=name%> = inline_template('<%%= <%=name%>.to_a.flatten.inspect %>')
+    $arr_<%=name%> = inline_template('<%%= <%=name%>.collect { |k,v| "\"#{k}\", \"#{v}\"" }.join(", ") %>')
     <%- end -%>
     $opt_<%=name%> = "  <%=name%> => ${arr_<%=name%>}\n"
   }
