@@ -141,6 +141,11 @@ sorted_1.each do |name, config|
 
   require logstash::params
 
+  File {
+    owner => $logstash::logstash_user,
+    group => $logstash::logstash_group
+  }
+
   $confdirstart = prefix($instances, "${logstash::configdir}/")
   $conffiles = suffix($confdirstart, "/config/<%=section%>_<% if section=='filter' %>${order}_<%- end%><%=plugin_name%>_${name}")
   $services = prefix($instances, 'logstash-')
@@ -214,9 +219,7 @@ sorted_1.each do |name, config|
 
       file { "${filesdir}/${basefilename_<%=name%>}":
         source  => $<%=name%>,
-        owner   => 'root',
-        group   => 'root',
-        mode    => '0640',
+        mode    => '0440',
         require => File[$filesdir]
       }
     } else {
@@ -249,8 +252,6 @@ if got_path_resource == true -%>
   #### Manage the files directory
   file { $filesdir:
     ensure  => directory,
-    owner   => 'root',
-    group   => 'root',
     mode    => '0640',
     purge   => true,
     recurse => true,
@@ -271,9 +272,7 @@ sorted_attributes.each do |name, config|
   next if name == 'instances'
 -%>${opt_<%=name %>}<%- end -%>
  }\n}\n",
-    owner   => 'root',
-    group   => 'root',
-    mode    => '0640',
+    mode    => '0440',
     notify  => Service[$services],
     require => Class['logstash::package', 'logstash::config']
   }
